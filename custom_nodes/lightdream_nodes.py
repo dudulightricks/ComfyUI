@@ -110,7 +110,8 @@ class LightdreamKSampler:
                     "positive": ("CONDITIONING", ),
                     "negative": ("CONDITIONING", ),
                     "latent_image": ("LATENT", ),
-                     }
+                    "deviation": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                    }
                 }
 
     RETURN_TYPES = ("LATENT",)
@@ -118,10 +119,11 @@ class LightdreamKSampler:
 
     CATEGORY = "sampling"
 
-    def sample(self, model, seed, steps, cfg, scheduler, positive, negative, latent_image):
+    def sample(self, model, seed, steps, cfg, scheduler, positive, negative, latent_image, deviation=1.0):
         latent = latent_image
         device = comfy.model_management.get_torch_device()
         latent_image = latent["samples"]
+        latent_image = latent_image.to(device)
 
         batch_inds = latent["batch_index"] if "batch_index" in latent else None
         noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
@@ -161,6 +163,8 @@ class LightdreamKSampler:
             generator=None,
             initial_noise=noise,
             callback=callback,
+            input_image=latent_image,
+            deviation=deviation,
         )
 
         out["samples"] = latents
@@ -183,12 +187,28 @@ class LightdreamLatentDecode:
         return (latents, )
 
 
+class LightdreamLatentEecode:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { "pixels": ("IMAGE", )}}
+    RETURN_TYPES = ("LATENT",)
+    FUNCTION = "encode"
+
+    CATEGORY = "latent"
+
+    def encode(self, pixels):
+        latents = ((pixels * 2) - 1).clamp(-1, 1)
+        latents = latents.permute(0, 3, 1, 2)
+        return ({"samples":latents}, )
+
+
 NODE_CLASS_MAPPINGS = {
     "LightdreamCheckpointLoader": LightdreamCheckpointLoader,
     "LightdreamTextEncode": LightdreamTextEncode,
     "LightdreamEmptyLatentImage": LightdreamEmptyLatentImage,
     "LightdreamLatentDecode": LightdreamLatentDecode,
     "LightdreamKSampler": LightdreamKSampler,
+    "LightdreamLatentEecode": LightdreamLatentEecode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -197,6 +217,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LightdreamEmptyLatentImage": "Lightdream Empty Latent Image",
     "LightdreamLatentDecode": "Lightdream Latent Decode",
     "LightdreamKSampler": "Lightdream KSampler",
+    "LightdreamLatentEecode": "Lightdream Latent Encode",
 }
-
-

@@ -146,6 +146,8 @@ class LightdreamPipeline(DiffusionPipeline):
         return_dict: bool = True,
         callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
         callback_steps: Optional[int] = 1,
+        input_image: Optional[torch.FloatTensor] = None,
+        deviation: float = 1.0,
         **kwargs
     ):
         r"""
@@ -225,8 +227,16 @@ class LightdreamPipeline(DiffusionPipeline):
 
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
-        timesteps = self.scheduler.timesteps
         torch.manual_seed(0)
+
+        offset = self.scheduler.steps_offset if deviation < 1 else 0
+        init_timestep_pos = int(num_inference_steps * deviation) + offset
+        init_timestep_pos = min(init_timestep_pos, num_inference_steps)
+        init_timestep_pos = max(init_timestep_pos, 1)
+        first_timestep = self.scheduler.timesteps[-init_timestep_pos]
+        batch_first_timestep = torch.tensor([first_timestep] * batch_size * num_images_per_prompt, device=device)
+        t_start = max(num_inference_steps - init_timestep_pos + offset, 0)
+        timesteps = self.scheduler.timesteps[t_start:].to(device)
 
         # 5. Prepare latent variables
         num_channels_latents = 3
@@ -246,6 +256,10 @@ class LightdreamPipeline(DiffusionPipeline):
 
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
+
+        epsilon = 0.00001
+        if deviation < 1 - epsilon and input_image is not None:
+            latents = self.scheduler.add_noise(input_image, latents, batch_first_timestep)
 
         with self.progress_bar(iterable=range(num_inference_steps)) as progress_bar:
             for i, t in enumerate(timesteps):
