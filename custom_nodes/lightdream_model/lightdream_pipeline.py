@@ -147,6 +147,7 @@ class LightdreamPipeline(DiffusionPipeline):
         callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
         callback_steps: Optional[int] = 1,
         input_image: Optional[torch.FloatTensor] = None,
+        input_mask: Optional[torch.FloatTensor] = None,
         deviation: float = 1.0,
         **kwargs
     ):
@@ -240,7 +241,7 @@ class LightdreamPipeline(DiffusionPipeline):
 
         # 5. Prepare latent variables
         num_channels_latents = 3
-        latents = self.prepare_latents(
+        original_noise = self.prepare_latents(
             batch_size * num_images_per_prompt,
             num_channels_latents,
             height,
@@ -259,7 +260,9 @@ class LightdreamPipeline(DiffusionPipeline):
 
         epsilon = 0.00001
         if deviation < 1 - epsilon and input_image is not None:
-            latents = self.scheduler.add_noise(input_image, latents, batch_first_timestep)
+            latents = self.scheduler.add_noise(input_image, original_noise, batch_first_timestep)
+        else:
+            latents = original_noise
 
         with self.progress_bar(iterable=range(num_inference_steps)) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -314,13 +317,22 @@ class LightdreamPipeline(DiffusionPipeline):
                 # compute the previous noisy sample x_t -> x_t-1
                 if isinstance(self.scheduler, DDIMScheduler):
                     extra_step_kwargs['use_clipped_model_output'] = True
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
+                step_result = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)
+                latents = step_result.prev_sample
+
+                if input_mask is not None:
+                    if i < len(timesteps) - 1:
+                        batch_t_next = timesteps[i + 1]
+                        noised_image = self.scheduler.add_noise(input_image, original_noise, batch_t_next)
+                    else:
+                        noised_image = input_image
+                    latents = latents * input_mask + noised_image * (1 - input_mask)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
                     if callback is not None and i % callback_steps == 0:
-                        callback(i, t, latents)
+                        callback(i, t, step_result.pred_original_sample)
 
         return latents
 

@@ -1,5 +1,6 @@
 import torch
 from enum import Enum
+import math
 
 import comfy.sample
 import comfy.utils
@@ -130,7 +131,7 @@ class LightdreamKSampler:
 
         noise_mask = None
         if "noise_mask" in latent:
-            raise "Lightdream currently not supporting noise mask."
+            noise_mask = latent["noise_mask"].to(device)
 
         preview_format = "JPEG"
         if preview_format not in ["JPEG", "PNG"]:
@@ -164,6 +165,7 @@ class LightdreamKSampler:
             initial_noise=noise,
             callback=callback,
             input_image=latent_image,
+            input_mask=noise_mask,
             deviation=deviation,
         )
 
@@ -201,6 +203,41 @@ class LightdreamLatentEecode:
         latents = latents.permute(0, 3, 1, 2)
         return ({"samples":latents}, )
 
+class LightdreamEncodeForInpaint:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { "pixels": ("IMAGE", ), "mask": ("MASK", ), "grow_mask_by": ("INT", {"default": 6, "min": 0, "max": 64, "step": 1}),}}
+    RETURN_TYPES = ("LATENT",)
+    FUNCTION = "encode"
+
+    CATEGORY = "latent/inpaint"
+
+    def encode(self, pixels, mask, grow_mask_by=6):
+        x = (pixels.shape[1] // 8) * 8
+        y = (pixels.shape[2] // 8) * 8
+        mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
+
+        pixels = pixels.clone()
+        if pixels.shape[1] != x or pixels.shape[2] != y:
+            x_offset = (pixels.shape[1] % 8) // 2
+            y_offset = (pixels.shape[2] % 8) // 2
+            pixels = pixels[:,x_offset:x + x_offset, y_offset:y + y_offset,:]
+            mask = mask[:,:,x_offset:x + x_offset, y_offset:y + y_offset]
+
+        #grow mask by a few pixels to keep things seamless in latent space
+        if grow_mask_by == 0:
+            mask_erosion = mask
+        else:
+            kernel_tensor = torch.ones((1, 1, grow_mask_by, grow_mask_by))
+            padding = math.ceil((grow_mask_by - 1) / 2)
+
+            mask_erosion = torch.clamp(torch.nn.functional.conv2d(mask.round(), kernel_tensor, padding=padding), 0, 1)
+
+        latents = ((pixels * 2) - 1).clamp(-1, 1)
+        latents = latents.permute(0, 3, 1, 2)
+
+        return ({"samples":latents, "noise_mask": (mask_erosion[:,:,:x,:y].round())}, )
+
 
 NODE_CLASS_MAPPINGS = {
     "LightdreamCheckpointLoader": LightdreamCheckpointLoader,
@@ -209,6 +246,7 @@ NODE_CLASS_MAPPINGS = {
     "LightdreamLatentDecode": LightdreamLatentDecode,
     "LightdreamKSampler": LightdreamKSampler,
     "LightdreamLatentEecode": LightdreamLatentEecode,
+    "LightdreamEncodeForInpaint": LightdreamEncodeForInpaint,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -218,4 +256,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LightdreamLatentDecode": "Lightdream Latent Decode",
     "LightdreamKSampler": "Lightdream KSampler",
     "LightdreamLatentEecode": "Lightdream Latent Encode",
+    "LightdreamEncodeForInpaint": "Lightdream Encode (for Inpainting)",
 }
