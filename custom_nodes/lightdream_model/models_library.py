@@ -7,9 +7,10 @@ from typing import List
 
 from google.cloud.storage import Blob, Client
 from tqdm import tqdm
+import folder_paths
 
 _DEFAULT_MODELS_BUCKET = "ltx-research-txt2img-sdk"
-_DEFAULT_LOCAL_MODELS_DIR = Path.home() / ".models"
+_DEFAULT_LOCAL_MODELS_DIR = folder_paths.get_folder_paths("checkpoints")[0]
 
 _MODELS_BUCKET = os.environ.get("MODELS_BUCKET", _DEFAULT_MODELS_BUCKET)
 _LOCAL_MODELS_DIR = os.environ.get("MODELS_PATH", _DEFAULT_LOCAL_MODELS_DIR)
