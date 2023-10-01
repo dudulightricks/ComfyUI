@@ -25,7 +25,7 @@ class LightdreamCheckpointLoader:
     RETURN_TYPES = ("MODEL", "TEXT_ENCODER")
     FUNCTION = "load_checkpoint"
 
-    CATEGORY = "loaders"
+    CATEGORY = "lightricks/lightdream"
 
     def load_checkpoint(self, model_version: str):
         assert model_version == LightdreamVersion.LT_1_0.value, "lt-1-0 is the only one supported currently."
@@ -44,7 +44,7 @@ class LightdreamTextEncode:
     RETURN_TYPES = ("CONDITIONING",)
     FUNCTION = "encode"
 
-    CATEGORY = "conditioning"
+    CATEGORY = "lightricks/lightdream"
 
     def encode(self, text_encoder, text):
         device = comfy.model_management.get_torch_device()
@@ -93,7 +93,7 @@ class LightdreamEmptyLatentImage:
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "generate"
 
-    CATEGORY = "latent"
+    CATEGORY = "lightricks/lightdream"
 
     def generate(self, width, height, batch_size=1):
         latent = torch.zeros([batch_size, 3, height, width])
@@ -118,7 +118,7 @@ class LightdreamKSampler:
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "sample"
 
-    CATEGORY = "sampling"
+    CATEGORY = "lightricks/lightdream"
 
     def sample(self, model, seed, steps, cfg, scheduler, positive, negative, latent_image, deviation=1.0):
         latent = latent_image
@@ -180,7 +180,7 @@ class LightdreamLatentDecode:
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "decode"
 
-    CATEGORY = "latent"
+    CATEGORY = "lightricks/lightdream"
 
     def decode(self, samples):
         latents = (samples["samples"] / 2 + 0.5).clamp(0, 1)
@@ -196,7 +196,7 @@ class LightdreamLatentEecode:
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "encode"
 
-    CATEGORY = "latent"
+    CATEGORY = "lightricks/lightdream"
 
     def encode(self, pixels):
         latents = ((pixels * 2) - 1).clamp(-1, 1)
@@ -210,7 +210,7 @@ class LightdreamEncodeForInpaint:
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "encode"
 
-    CATEGORY = "latent/inpaint"
+    CATEGORY = "lightricks/lightdream/inpaint"
 
     def encode(self, pixels, mask, grow_mask_by=6):
         x = (pixels.shape[1] // 8) * 8
