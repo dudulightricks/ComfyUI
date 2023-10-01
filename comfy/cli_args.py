@@ -34,7 +34,7 @@ class EnumAction(argparse.Action):
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--listen", type=str, default="127.0.0.1", metavar="IP", nargs="?", const="0.0.0.0", help="Specify the IP address to listen on (default: 127.0.0.1). If --listen is provided without an argument, it defaults to 0.0.0.0. (listens on all)")
-parser.add_argument("--port", type=int, default=8188, help="Set the listen port.")
+parser.add_argument("--port", type=int, default=8186, help="Set the listen port.")
 parser.add_argument("--enable-cors-header", type=str, default=None, metavar="ORIGIN", nargs="?", const="*", help="Enable CORS (Cross-Origin Resource Sharing) with optional origin or allow all with default '*'.")
 parser.add_argument("--extra-model-paths-config", type=str, default=None, metavar="PATH", nargs='+', action='append', help="Load one or more extra_model_paths.yaml files.")
 parser.add_argument("--output-directory", type=str, default=None, help="Set the ComfyUI output directory.")
@@ -67,7 +67,7 @@ class LatentPreviewMethod(enum.Enum):
     Latent2RGB = "latent2rgb"
     TAESD = "taesd"
 
-parser.add_argument("--preview-method", type=LatentPreviewMethod, default=LatentPreviewMethod.NoPreviews, help="Default preview method for sampler nodes.", action=EnumAction)
+parser.add_argument("--preview-method", type=LatentPreviewMethod, default=LatentPreviewMethod.Latent2RGB, help="Default preview method for sampler nodes.", action=EnumAction)
 
 attn_group = parser.add_mutually_exclusive_group()
 attn_group.add_argument("--use-split-cross-attention", action="store_true", help="Use the split cross attention optimization. Ignored when xformers is used.")
