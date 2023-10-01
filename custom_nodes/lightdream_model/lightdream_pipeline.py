@@ -230,7 +230,7 @@ class LightdreamPipeline(DiffusionPipeline):
         self.scheduler.set_timesteps(num_inference_steps, device=device)
         torch.manual_seed(0)
 
-        offset = self.scheduler.steps_offset if deviation < 1 else 0
+        offset = self.scheduler.config.get("steps_offset", 0) if deviation < 1 else 0
         init_timestep_pos = int(num_inference_steps * deviation) + offset
         init_timestep_pos = min(init_timestep_pos, num_inference_steps)
         init_timestep_pos = max(init_timestep_pos, 1)
@@ -332,7 +332,9 @@ class LightdreamPipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
                     if callback is not None and i % callback_steps == 0:
-                        callback(i, t, step_result.pred_original_sample)
+                        preview_content = step_result.pred_original_sample \
+                            if hasattr(step_result, 'pred_original_sample') else latents
+                        callback(i, t, preview_content)
 
         return latents
 
