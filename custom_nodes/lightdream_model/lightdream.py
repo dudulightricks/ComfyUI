@@ -63,7 +63,7 @@ class LightDreamModel:
         start_time = time.time()
         text_encoder = T5Encoder(
             model_path=path / "google-t5-v1_1-xxl",
-            dtype=torch.float32,
+            dtype=torch.bfloat16,
         )
         cls._log.debug(f"Loaded the text encoder in {time.time() - start_time:.2f} seconds")
         return text_encoder

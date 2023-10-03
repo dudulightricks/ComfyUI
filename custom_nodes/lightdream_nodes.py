@@ -51,6 +51,8 @@ class LightdreamTextEncode:
         text_embeddings, last_tokens, attn_mask = self._make_text_embeddings_and_last_tokens(
             text_encoder=text_encoder, prompt=[text], num_images_per_prompt=1, device=device
         )
+        text_embeddings = text_embeddings.to(torch.float32)
+        last_tokens = last_tokens.to(torch.float32)
         cond = (text_embeddings, last_tokens, attn_mask)
         return (cond, )
 
